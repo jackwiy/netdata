@@ -1,72 +1,179 @@
-<!--
----
-title: "Install Netdata with kickstart.sh"
-custom_edit_url: https://github.com/netdata/netdata/edit/master/packaging/installer/methods/kickstart.md
----
--->
+import { OneLineInstall } from '@site/src/components/OneLineInstall/'
+import { Install, InstallBox } from '@site/src/components/Install/'
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
 # Install Netdata with kickstart.sh
 
-![](https://registry.my-netdata.io/api/v1/badge.svg?chart=web_log_nginx.requests_per_url&options=unaligned&dimensions=kickstart&group=sum&after=-3600&label=last+hour&units=installations&value_color=orange&precision=0) ![](https://registry.my-netdata.io/api/v1/badge.svg?chart=web_log_nginx.requests_per_url&options=unaligned&dimensions=kickstart&group=sum&after=-86400&label=today&units=installations&precision=0)
+`kickstart.sh` is the recommended way to install Netdata.
 
-This page covers detailed instructions on using and configuring the automatic one-line installation script named
-`kickstart.sh`.
+This installation script works on all major Linux distributions. It automatically detects the best way to install Netdata for your system.
 
-This method is fully automatic on all Linux distributions. To install Netdata from source and get _automatic nightly
-updates_, run the following as your normal user:
+<details><summary>What does kickstart.sh actually do?</summary>
 
-```bash
-bash <(curl -Ss https://my-netdata.io/kickstart.sh)
+1. Detects your OS and environment
+2. Checks for an existing Netdata installation
+3. Installs using:
+    - Native packages (preferred)
+    - Static build (fallback)
+    - Build from source (last resort)
+4. Installs an auto-update cron job (unless disabled)
+5. Optionally connects your node to Netdata Cloud
+
+</details>  
+
+## Quick Overview
+
+| Task                  | Command / Location             | Notes                                   |
+|-----------------------|--------------------------------|-----------------------------------------|
+| Install Netdata       | Run `kickstart.sh`             | Choose nightly or stable release        |
+| Connect to Cloud      | Use claim token                | Connect node to Netdata Cloud           |
+| Customize install     | Pass flags to control behavior | Directory, release, update control      |
+| Export config for IaC | Copy config from Cloud UI      | For automation & Infrastructure as Code |
+
+## Run the One-Line Install Command
+
+To install and connect to Netdata Cloud in a single step from your terminal:
+
+<Tabs>
+  <TabItem value="wget" label="wget">
+    <OneLineInstall
+      method="wget"
+      privacyMd="[anonymous statistics?](/docs/netdata-agent/configuration/anonymous-telemetry-events.md)"
+      connectMd="[connect](/src/claim/README.md)"
+    />
+  </TabItem>
+
+  <TabItem value="curl" label="curl">
+    <OneLineInstall
+      method="curl"
+      privacyMd="[anonymous statistics?](/docs/netdata-agent/configuration/anonymous-telemetry-events.md)"
+      connectMd="[connect](/src/claim/README.md)"
+    />
+  </TabItem>
+</Tabs>
+
+:::tip
+
+Pick **Stable** or **Nightly**: Check the [guide](/packaging/PLATFORM_SUPPORT.md) for differences.
+
+:::
+
+<details><summary>🔍 Where to find your claim token</summary>
+
+1. Log in to [Netdata Cloud](https://app.netdata.cloud)
+2. Navigate to your Space
+3. Go to **Space Settings** → **Nodes**
+4. Click **Add Node** → Copy Claim Token
+
+</details>
+
+## Optional Parameters for kickstart.sh
+
+Use these flags to customize your installation.
+
+| Category                | Parameter              | Purpose                             |
+|-------------------------|------------------------|-------------------------------------|
+| **Directory Options**   | `--install-prefix`     | Custom install directory            |
+|                         | `--old-install-prefix` | Clean previous install directory    |
+| **Interactivity**       | `--non-interactive`    | No prompts (good for scripts)       |
+|                         | `--interactive`        | Force interactive prompts           |
+| **Release Channel**     | `--release-channel`    | `nightly`, `stable`, `preview`, or `default` (automatic selection)               |
+|                         | `--install-version`    | Install specific version            |
+| **Auto-Updates**        | `--auto-update`        | Enable updates                      |
+|                         | `--no-updates`         | Disable updates                     |
+| **Synthetic monitoring** | `--install-dem-runtime` | Explicitly install the optional DEM browser runtime |
+| **Netdata Cloud**       | `--claim-token`        | Provide claim token                 |
+|                         | `--claim-rooms`        | Assign node to specific Cloud Rooms |
+| **Reinstall/Uninstall** | `--reinstall`          | Reinstall existing Netdata          |
+|                         | `--uninstall`          | Uninstall Netdata completely        |
+
+:::note
+
+**Managing auto-updates after installation:** `kickstart.sh` enables daily auto-updates by default. To disable, check, or re-enable auto-updates — including why `netdata-updater.conf` cannot disable them — see [Managing Automatic Updates](/packaging/installer/UPDATE.md#managing-automatic-updates) in the Update guide.
+
+:::
+
+To use preview releases, pass `--release-channel=preview`. This channel includes prereleases and final releases.
+Without a version pin, preview installs the latest version published to that channel.
+Native installations use the `netdata-preview` repository. Static and source builds use only preview artifacts from
+`artifacts.netdata.cloud`, with no GitHub fallback.
+You can pin a prerelease with `--install-version`, for example `--install-version 2.13.0-rc1`.
+
+## Optional browser runtime for synthetic monitoring
+
+Add `--install-dem-runtime` to an ordinary kickstart install or update to prepare the browser runtime used by DEM journeys and Lighthouse. Without this option, kickstart does not acquire a browser runtime. The option also works with an existing installation supported by kickstart.
+
+```sh
+sudo sh ./kickstart.sh --install-dem-runtime
 ```
 
-> See our [installation guide](../README.md) for details about [automatic updates](../README.md#automatic-updates) or
-> [nightly vs. stable releases](../README.md#nightly-vs-stable-releases).
+For local, rootful Docker on Linux, start Netdata with the [documented container configuration](/packaging/docker/README.md#recommended-way),
+including a persistent `/var/lib/netdata` and the documented AppArmor setting where applicable. Currently you must
+set `runtime.release_url` in the container's `dem.conf` to the signed metadata URL for its architecture.
+Run `sudo sh ./kickstart.sh --install-dem-runtime --docker-container netdata` on the daemon host, using the
+container's exact name. Kickstart prepares any required host policy and installs the runtime as the container's
+service account. After the first installation succeeds, run `docker restart netdata` to activate it.
+The host does not need an Agent installation. Rootless, nested and remote Docker need separate administrator
+setup. For those configurations and retirement, see
+[Docker browser runtime setup](/packaging/installer/DEM-RUNTIME.md#docker-host-preparation).
 
-## What does `kickstart.sh` do?
+For native package installations, kickstart installs the optional `netdata-dem-runtime` package using the same package manager and interaction policy as the Agent. Native runtime packages require the named `netdata` service account. Package hooks qualify the runtime and may restart a previously running Agent. If package installation or runtime readiness fails, kickstart reports failure; it does not switch to managed delivery.
 
-The `kickstart.sh` script does the following after being downloaded and run using `bash`:
+For static and source installations, kickstart calls the installed `netdata-dem-runtime.sh` host helper. The helper prepares the necessary AppArmor launcher allowance, then runs `dem.plugin runtime install --allow-download` as the configured nonroot Netdata service user. It reads the installed Agent's normal configuration to find its plugin, administrator/stock configuration and persistent-state directories, including custom installation prefixes. The CLI reads `runtime.release_url` from `dem.conf` and fetches the canonical package keyring from `https://repository.netdata.cloud/netdatabot.gpg.key`; kickstart does not provide a substitute trust key or release URL.
 
--   Detects the Linux distribution and **installs the required system packages** for building Netdata. Unless you added
-    the `--dont-wait` option, it will ask for your permission first.
--   Downloads the latest Netdata source tree to `/usr/src/netdata.git`.
--   Installs Netdata by running `./netdata-installer.sh` from the source tree, using any [optional
-    parameters](#optional-parameters-to-alter-your-installation) you have specified.
--   Installs `netdata-updater.sh` to `cron.daily`, so your Netdata installation will be updated with new nightly
-    versions, unless you override that with an [optional parameter](#optional-parameters-to-alter-your-installation).
--   Prints a message whether installation succeeded or failed for QA purposes.
+This managed action downloads signed release metadata and the browser archive, then enables automatic daily preparation of future releases. **An operator must restart the Agent to activate the prepared runtime.** Kickstart does not restart it for managed runtime activation. The Agent's `--no-updates` option controls Agent updates separately; to disable automatic runtime preparation, use the installed host helper with `install --agent /path/to/netdata --allow-download --manual-updates`. See [browser runtime host setup](/packaging/installer/DEM-RUNTIME.md) for offline inputs, policy scope and removal.
 
-## Optional parameters to alter your installation
+The browser runtime requires Linux `x86_64` or `aarch64`, an Agent containing the runtime CLI, and a host where browser sandboxing is allowed. Native package qualification requires a running systemd host. A missing `runtime.release_url` for managed setup, an unavailable optional package, or failed browser qualification makes explicit setup fail even if Agent installation succeeded. Kickstart does not inspect live service `-c`/`-u` arguments or environment overrides. Such custom launch setups, and plugin paths requiring escaping, must use the runtime CLI directly with the same service identity and configuration as the Agent, after an administrator prepares any required host policy through the helper's policy-only route.
 
-The `kickstart.sh` script passes all its parameters to `netdata-installer.sh`, which you can use to customize your
-installation. Here are a few important parameters:
+`--install-dem-runtime` cannot be combined with `--offline-install-source`, `--prepare-offline-install-source`, `--repositories-only`, `--claim-only`, or `--uninstall`. For offline static/source installation, run the installed host helper as root with `install --agent /path/to/netdata --release /absolute/release.json --archive /absolute/runtime.tar.zst`; provision the offline keyring as described in the [host setup guide](/packaging/installer/DEM-RUNTIME.md#static-and-source-installations). Native installations use the package manager's offline provisioning. `--dry-run` reports the intended action without acquiring or qualifying a runtime.
 
--   `--dont-wait`: Enable automated installs by not prompting for permission to install any required packages.
--   `--dont-start-it`: Prevent the installer from starting Netdata automatically.
--   `--stable-channel`: Automatically update only on the release of new major versions.
--   `--nightly-channel`: Automatically update on every new nightly build.
--   `--disable-telemetry`: Opt-out of [anonymous statistics](../../../docs/anonymous-statistics.md) we use to make
-    Netdata better.
--   `--no-updates`: Prevent automatic updates of any kind.
--   `--local-files`: Used for [offline installations](offline.md). Pass four file paths: the Netdata
-    tarball, the checksum file, the go.d plugin tarball, and the go.d plugin config tarball, to force kickstart run the
-    process using those files. This option conflicts with the `--stable-channel` option. If you set this _and_
-    `--stable-channel`, Netdata will use the local files.
+## Environment Variables
 
-## Verify script integrity
+These environment variables provide additional customization options (most users won't need these):
 
-To use `md5sum` to verify the intregity of the `kickstart.sh` script you will download using the one-line command above,
-run the following:
+| Variable            | Purpose                                      | Default Behavior                            |
+|---------------------|----------------------------------------------|---------------------------------------------|
+| `TMPDIR`            | Specify directory for temporary files        | System default temp directory               |
+| `ROOTCMD`           | Command to run with root privileges          | Uses `sudo`, `doas`, or `pkexec` (in order) |
+| `DISABLE_TELEMETRY` | Disable telemetry when set to non-zero value | Telemetry enabled                           |
+
+:::note
+
+The user running the script needs write and execute permissions in the temporary directory specified by TMPDIR.
+
+:::
+
+## Verify Script Integrity
+
+Before running the installation script, you can verify its integrity using the following command:
 
 ```bash
-[ "3058dbf398ba0d73d02c7626545610f5" = "$(curl -Ss https://my-netdata.io/kickstart.sh | md5sum | cut -d ' ' -f 1)" ] && echo "OK, VALID" || echo "FAILED, INVALID"
+[ "@KICKSTART_CHECKSUM@" = "$(curl -Ss https://get.netdata.cloud/kickstart.sh | md5sum | cut -d ' ' -f 1)" ] && echo "OK, VALID" || echo "FAILED, INVALID"
 ```
 
-If the script is valid, this command will return `OK, VALID`.
+If the script is valid, this command will return `OK, VALID`. We recommend verifying script integrity before installation, especially in production environments.
 
-## What's next?
+## Notes & Best Practices
 
-When you finish installing Netdata, be sure to visit our [step-by-step tutorial](../../../docs/step-by-step/step-00.md)
-for a fully-guided tour into Netdata's capabilities and how to configure it according to your needs.
+- Stop the Agent with `sudo systemctl stop netdata` before reinstalling
+- Customize install location or behavior with flags
+- Always verify the downloaded script for security
+- Use the `--non-interactive` flag in CI/CD pipelines
 
-Or, if you're a monitoring and system administration pro, skip ahead to our [getting started
-guide](../../../docs/getting-started.md) for a quick overview.
+## Troubleshooting
+
+If `curl` fails to download the install script with `curl: (60) SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)`, this is an OS-level certificate-trust issue: the host's CA certificate store is missing or outdated. Update your system CA certificates using your package manager (for example `sudo apt-get install --reinstall ca-certificates` on Debian/Ubuntu or `sudo dnf reinstall ca-certificates` on RHEL/Fedora), then re-run the install command.
+
+If you see a message like `File not found when checking for remote file at https://repository.netdata.cloud/repos/repoconfig` while running `kickstart.sh`, it is an informational notice. It means a remote file check during installation did not succeed, but this does not stop or break the installation — the installer continues automatically to the next step. The message is not specific to any particular Linux distribution and can appear on any supported system.
+
+### Switching from a vendor-packaged native install
+
+Systems such as XCP-ng and XOA ship Netdata through their own package repositories, and these bundled packages are often older than the latest release. `kickstart.sh` does not recognize these installs and is not designed to safely update, reinstall, or uninstall them. See the "Switching From a Vendor-Packaged Native Install" section under [Switching Install Types](/docs/learn/switching-install-types.md#switching-install-types) for the full procedure to remove the existing package and switch to a static build or another install type.
+
+## Related Docs
+
+- [Connect to Netdata Cloud](/src/claim/README.md)
+- [Release Channels & Versions](/packaging/PLATFORM_SUPPORT.md)
+- [Uninstall Guide](/packaging/installer/UNINSTALL.md)
+- [Offline Installation Guide](/packaging/installer/methods/offline.md)

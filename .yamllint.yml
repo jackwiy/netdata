@@ -3,6 +3,15 @@ yaml-files:
   - '*.yaml'
   - '*.yml'
   - '.yamllint'
+  - 'src/collectors/python.d.plugin/*.conf'
+  - 'src/collectors/python.d.plugin/*/*.conf'
+
+ignore: |
+  mqtt_websockets/
+  packaging/makeself/tmp/
+  src/go/plugin/go.d/config/go.d/snmp.profiles.d/default/
+  src/go/plugin/go.d/config/go.d/snmp.trap-profiles/default/
+  src/collectors/log2journal/tests.d/
 
 rules:
   braces: enable
@@ -12,18 +21,19 @@ rules:
   comments: disable
   comments-indentation: disable
   document-end: disable
-  document-start:
-    level: warning
+  document-start: disable
   empty-lines: enable
-  empty-values: disable
+  empty-values: enable
   hyphens: enable
   indentation: enable
+  line-length: disable
   key-duplicates: enable
   key-ordering: disable
-  line-length: disable
   new-line-at-end-of-file: enable
   new-lines: enable
   octal-values: enable
   quoted-strings: disable
   trailing-spaces: enable
-  truthy: disable
+  truthy:
+    check-keys: false
+    allowed-values: ["true", "false", "yes", "no"]

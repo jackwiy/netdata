@@ -1,53 +1,132 @@
-<!--
----
-title: "Netdata Cloud"
-custom_edit_url: https://github.com/netdata/netdata/edit/master/docs/netdata-cloud/README.md
----
--->
-
 # Netdata Cloud
 
-Netdata Cloud is core to our ongoing mission to provide real-time, distributed health monitoring and performance troubleshooting. It's the foundation of an ecosystem of tools that will help you build more extraordinary infrastructures.
+Netdata Cloud is a powerful service that transforms your standalone Netdata Agent installations into a unified, scalable observability solution. It achieves this without centralizing metric storage, ensuring optimal performance and cost-effectiveness even at enterprise scale.
 
-Netdata Cloud is also the next iteration of our global Netdata registry. For technical information about how our registries work, what information they store, and how your web browser "talks" to both, visit our [registry documentation](../../registry).
+:::info
 
-Learn more about the future of Netdata Cloud on our [announcement post](https://blog.netdata.cloud/posts/netdata-cloud-announcement/).
+By serving as a lightweight control plane, Netdata Cloud provides you with:
 
-## Registering for or signing in to Netdata Cloud
+- **Seamless coordination** across multiple teams and environments
+- **Unified visibility** across cloud providers and data centers
+- **Real-time, high-fidelity** monitoring at any scale
+- **Flexible observability** pipelines that grow with your infrastructure
 
-**If you're ready to register for a new Netdata Cloud account, or sign in to your existing Netdata Cloud account, visit our [signing in guide](signing-in.md) for details.**
+:::
 
-!!! attention "Private registries and Netdata Cloud"
-    If you're running a private registry and are interested in trying out Netdata Cloud as a replacement for your private registry, read [our notice](signing-in.md#private-registries-and-netdata-cloud) about transitioning from a private registry to our Netdata Cloud registry.
+<details>
+<summary><strong>Click to see visual representation of the architecture</strong></summary><br/>
 
-## Netdata Cloud features
+```mermaid
+flowchart TB
+   NC("**Netdata Cloud**<br/>Horizontal scalability<br/>Role based access<br/>Access from anywhere<br/>Central dispatch of<br/>Alert notifications<br/>Custom Dashboards<br/>Advanced customization")
 
-Netdata Cloud currently enables two features: the **My nodes** in the top-left corner of the Netdata dashboard, and the [**Nodes View**](nodes-view.md).
+Users("**Unified Dashboards**<br/>across the infrastructure,<br/>multi-cloud, hybrid-cloud")
 
-We have an aggressive roadmap of new features, such as Workspaces for different parts of your infrastructure, Rooms to collaborate with colleagues, and the ability to receive alarms from any number of distributed Netdata agents in a single place. Read more about our proposed features [here](https://blog.netdata.cloud/posts/netdata-cloud-announcement/#what-features-will-netdata-cloud-offer).
+Notifications("**Alert Notifications**<br/>Slack, e-mail,<br/> Mobile App,<br/>PagerDuty, and more")
 
-### Planned enterprise features (paid)
+Users <--> NC
+NC --> Notifications
 
-Large enterprises have unique real-time monitoring needs. They have thousands of servers and applications running concurrently, and are willing to pay for the complex features that help them make smarter, faster decisions about their infrastructure. We expect to create a paid tier of Netdata Cloud with a recurring, per-user pricing model that will unlock enterprise-focused features.
+subgraph infrastructure["On-Prem Infrastructure"]
+direction TB
+Agents("**Netdata Agents**<br/>Standalone,<br/>Children, Parents<br/>(possibly overlapping)")
 
-A few of these planned features include:
+TimeSeries("Time-Series<br/>metric samples<br/>database")
 
--   Long-term storage of Netdata UI snapshots
--   Active Directory integration for single sign-on
--   Private service status pages
--   Extended retention of alarms timelines
--   Incident response toolkits
--   Additional enterprise plugins and integrations
--   Extended retention of chat messages
+PrivateAgents("Private<br/>Netdata Agents")
 
-Again, we expect that the vast majority of Netdata's users won't need these features. Creating these two tiers will help us further fund the company's efforts to deploy Netdata's open-source agent on a massive scale and entirely for free.
+Agents <--> TimeSeries
+Agents --- PrivateAgents
+end
 
-## Running Netdata without Netdata Cloud
+NC <--> Agents
 
-Netdata Cloud is entirely optional. The application will never force you to create a Netdata Cloud account or associate nodes with the public registries. But, if you choose not to use Netdata Cloud, you will be missing out on the [Nodes View](nodes-view.md) and other upcoming features.
+%% Style definitions
+classDef alert fill:#ffeb3b,stroke:#000000,stroke-width:3px,color:#000000,font-size:18px
+classDef neutral fill:#f9f9f9,stroke:#000000,stroke-width:3px,color:#000000,font-size:18px
+classDef complete fill:#4caf50,stroke:#000000,stroke-width:3px,color:#000000,font-size:18px
+classDef database fill:#2196F3,stroke:#000000,stroke-width:3px,color:#000000,font-size:18px
 
-## Running Netdata Cloud on-premises or as a hosted instance
+%% Apply styles
+class Users,Agents alert
+class NC,Notifications neutral
+class TimeSeries,PrivateAgents complete
+class infrastructure database
+```
 
-We plan on making both on-premises and hosted instances of Netdata Cloud available to enterprises. Until then, we are creating a list of people and businesses interested in either of these options. To add yourself or your organization to this list, email us at [info@netdata.cloud](mailto:info@netdata.cloud).
+</details><br/>
 
-[![analytics](https://www.google-analytics.com/collect?v=1&aip=1&t=pageview&_s=1&ds=github&dr=https%3A%2F%2Fgithub.com%2Fnetdata%2Fnetdata&dl=https%3A%2F%2Fmy-netdata.io%2Fgithub%2Fdocs%2Fnetdata-cloud%2FREADME&_u=MAC~&cid=5792dfd7-8dc4-476b-af31-da2fdb9f93d2&tid=UA-64295674-3)](<>)
+Netdata Cloud provides you with the following features, on top of what the Agents already provide:
+
+| Feature                                                                                                                 | Description                                                                                                                                                                                                                                                               |
+|:------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Horizontal Scalability**                                                                                              | • Scale your observability infrastructure effortlessly<br/>• Add [Parents and Children](/docs/deployment-guides/deployment-with-centralization-points.md) as needed<br/>• Manage all nodes from a single [Space](/docs/netdata-cloud/organize-your-infrastructure-invite-your-team.md) |
+| [**Role-Based Access Control (RBAC)**](/docs/netdata-cloud/authentication-and-authorization/role-based-access-model.md) | • Fine-grained access management<br/>• Control team member privileges across your Space<br/>• Secure, role-appropriate access to monitoring data                                                                                                                          |
+| **Global Remote Access**                                                                                                | • Access your monitoring from anywhere<br/>• No VPN configuration required<br/>• Secure access to local dashboards while data stays on premises                                                                                                                           |
+| **Centralized Alert Management**                                                                                        | • Unified alert dispatch from a central location<br/>• Cloud-specific alerts and monitoring<br/>• Mobile push notifications via [Netdata Mobile App](/integrations/cloud-notifications/integrations/netdata_mobile_app.md) (paid plans)                                   |
+| [**Custom Dashboards**](/docs/dashboards-and-charts/dashboards-tab.md)                                                  | • Create and save custom views<br/>• Share dashboards across teams<br/>• Build focused views for specific needs                                                                                                                                                           |
+| **Personal Customization**                                                                                              | • Individual user visualization preferences<br/>• Tailored dashboard experiences<br/>• Flexible viewing options for different roles                                                                                                                                       |
+
+## Stored Metadata
+
+Netdata Cloud doesn't store your metrics or logs.
+
+:::info
+
+**What Netdata Cloud Does Store:**
+
+- Node information and labels
+- Metric names, labels, and retention periods
+- Active collectors
+- Alert configurations and state changes
+
+**How Data Flows:**
+
+1. Metadata (listed above) is synchronized between Agents and Cloud
+2. Metric data and logs remain stored locally on your Agents
+3. When you view dashboards:
+    - Data is transferred directly from Agents to your browser via Cloud
+    - Cloud aggregates responses from multiple Agents into a unified view
+    - No metric or log data is stored in the Cloud during this process
+
+:::
+
+## Fidelity and Resolution
+
+Netdata Cloud delivers the exact same high-quality data that Agents collect. When you view dashboards through the Cloud:
+
+- No reduction in metric resolution
+- No loss of data fidelity
+- No compromise in data granularity
+
+The data you see is identical to what you would get by accessing Agents directly.
+
+## FAQ
+
+<details>
+<summary><strong>Does the Cloud require Observability Centralization Points?</strong></summary><br/>
+
+No. You can connect any or all Agents directly to the Cloud.
+
+We recommend creating [Observability Centralization Points](/docs/deployment-guides/deployment-with-centralization-points.md), as required for operational efficiency (ephemeral nodes, teams or services isolation, central control of alerts, production systems performance), security policies (internet isolation), or cost optimization (use existing capacities before allocating new ones).
+
+</details><br/>
+
+<details>
+<summary><strong>When I have Parents, do I need to connect the Children to the Cloud too?</strong></summary><br/>
+
+No, it is not necessary, but it provides high availability.
+
+When Parents are connected to the Cloud, all their Children are available via them.
+
+When multiple Parents store data from the same Children (in clusters or multi-level hierarchies), the Cloud queries each unique node once through a single available Parent.
+
+The Cloud prefers:
+
+- The most distant (from the Child) Parent that is available when doing metrics visualization queries (since usually these Parents have been added for this purpose).
+
+- The closest (to the Child) Parent available for [Top Monitoring](/docs/top-monitoring-netdata-functions.md). The streaming protocol of Parents and Children is able to forward such requests to the leaf child, via the Parents, to respond with live and accurate data.
+
+You may connect Children to the Cloud for high-availability, in cases where their Parents become unreachable.
+
+</details>

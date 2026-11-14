@@ -4,66 +4,93 @@ on:
   push:
     branches:
       - master
-  pull_request:
+  pull_request: null
+env:
+  DISABLE_TELEMETRY: 1
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  checksum-checks:
-    name: Checksums
+  file-check: # Check what files changed if we’re being run in a PR or on a push.
+    name: Check Modified Files
     runs-on: ubuntu-latest
-    steps:
-      - name: Git clone repository
-        uses: actions/checkout@v2
-      - name: Run checksum checks on kickstart files
-        env:
-          LOCAL_ONLY: "true"
-        run: |
-          ./tests/installer/checksums.sh
-  dashboard-checks:
-    name: Dashboard
-    runs-on: ubuntu-latest
-    steps:
-      - name: Git clone repository
-        uses: actions/checkout@v2
-      - name: Install required packages
-        run: |
-          ./packaging/installer/install-required-packages.sh --dont-wait --non-interactive netdata
-      - name: Backup dashboard.js
-        run: |
-          cp web/gui/dashboard.js /tmp/dashboard.js
-      - name: Regenerate dashboard.js
-        run: |
-          autoreconf -ivf
-          ./configure --enable-maintainer-mode
-          make dist
-      - name: Compare generated Dashboard vs. Backed up Dashboard
-        run: |
-          diff -sNrdu /tmp/dashboard.js web/gui/dashboard.js
-  dist-checks:
-    name: Dist
-    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check-run.outputs.run }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Prepare environment
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Check source files
+        id: check-source-files
+        uses: step-security/changed-files@2e07db73e5ccdb319b9a6c7766bd46d39d304bad # v47.0.5
+        with:
+          since_last_remote_commit: ${{ github.event_name != 'pull_request' }}
+          files: |
+            **/*.c
+            **/*.cc
+            **/*.h
+            **/*.hh
+            **/*.in
+            **/*.patch
+            src/aclk/aclk-schemas/
+            src/ml/dlib/
+          files_ignore: |
+            src/go/otel-collector/release-config.yaml.in
+            **/*.md
+      - name: Check build files
+        id: check-build-files
+        uses: step-security/changed-files@2e07db73e5ccdb319b9a6c7766bd46d39d304bad # v47.0.5
+        with:
+          since_last_remote_commit: ${{ github.event_name != 'pull_request' }}
+          files: |
+            **/*.cmake
+            CMakeLists.txt
+            **/CMakeLists.txt
+            .gitignore
+            .github/data/distros.yml
+            .github/workflows/build.yml
+            packaging/cmake/
+            packaging/*.version
+            packaging/*.checksums
+          files_ignore: |
+            **/*.md
+            packaging/repoconfig/
+      - name: List all changed files in pattern
+        continue-on-error: true
+        env:
+          CHANGED_SOURCE_FILES: ${{ steps.check-source-files.outputs.all_changed_files }}
+          CHANGED_BUILD_FILES: ${{ steps.check-build-files.outputs.all_changed_files }}
         run: |
-          ./packaging/installer/install-required-packages.sh --dont-wait --non-interactive netdata-all
-          sudo apt-get install -y libjson-c-dev libipmimonitoring-dev libcups2-dev libsnappy-dev \
-                                  libprotobuf-dev libprotoc-dev libssl-dev protobuf-compiler \
-                                  libnetfilter-acct-dev
-      - name: Configure
+          for file in ${CHANGED_SOURCE_FILES} ${CHANGED_BUILD_FILES} ; do
+            echo "$file was changed"
+          done
+      - name: Check Run
+        id: check-run
         run: |
-          autoreconf -ivf
-          ./configure \
-            --with-zlib \
-            --with-math \
-            --with-user=netdata \
-            CFLAGS=-O2
-      - name: Make dist
-        run: |
-          make dist
-      - name: Verify & Set distfile
-        run: |
-          ls -lah netdata-*.tar.gz
-          echo "::set-env name=DISTFILE::$(ls netdata-*.tar.gz)"
-      - name: Run run_install_with_dist_file.sh
-        run: |
-          ./.github/scripts/run_install_with_dist_file.sh "${DISTFILE}"
+          if [ "${{ steps.check-source-files.outputs.any_modified }}" == "true" ] || [ "${{ steps.check-build-files.outputs.any_modified }}" == "true" ] || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo 'run=true' >> "${GITHUB_OUTPUT}"
+          else
+            echo 'run=false' >> "${GITHUB_OUTPUT}"
+          fi
+
+  clang-checks:
+    name: Clang
+    needs:
+      - file-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip Check
+        id: skip
+        if: needs.file-check.outputs.run != 'true'
+        run: echo "SKIPPED"
+      - name: Checkout
+        if: needs.file-check.outputs.run == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+      - name: Build
+        if: needs.file-check.outputs.run == 'true'
+        run: docker build -f .github/dockerfiles/Dockerfile.clang .
